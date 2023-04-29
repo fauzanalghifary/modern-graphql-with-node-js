@@ -14,11 +14,11 @@ export const typeDefs = gql`
     postPublish(postId: ID!): PostPayload!
     postUnpublish(postId: ID!): PostPayload!
     signup(
-      credentials: CredentialInput!
+      credentials: CredentialsInput!
       name: String!
       bio: String!
     ): AuthPayload!
-    signin(credentials: CredentialInput!): AuthPayload!
+    signin(credentials: CredentialsInput!): AuthPayload!
   }
 
   type Post {
@@ -40,6 +40,7 @@ export const typeDefs = gql`
   type Profile {
     id: ID!
     bio: String!
+    isMyProfile: Boolean!
     user: User!
   }
 
@@ -62,7 +63,7 @@ export const typeDefs = gql`
     content: String
   }
 
-  input CredentialInput {
+  input CredentialsInput {
     email: String!
     password: String!
   }

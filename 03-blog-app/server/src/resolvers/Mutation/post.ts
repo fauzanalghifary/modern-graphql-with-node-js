@@ -1,4 +1,4 @@
-import { Prisma, Post } from "@prisma/client";
+import { Post, Prisma } from ".prisma/client";
 import { Context } from "../../index";
 import { canUserMutatePost } from "../../utils/canUserMutatePost";
 
@@ -13,12 +13,12 @@ interface PostPayloadType {
   userErrors: {
     message: string;
   }[];
-  post: Post | null | Prisma.Prisma__PostClient<Post>;
+  post: Post | Prisma.Prisma__PostClient<Post> | null;
 }
 
 export const postResolvers = {
   postCreate: async (
-    parent: any,
+    _: any,
     { post }: PostArgs,
     { prisma, userInfo }: Context
   ): Promise<PostPayloadType> => {
@@ -26,7 +26,7 @@ export const postResolvers = {
       return {
         userErrors: [
           {
-            message: "You must be logged in to create a post",
+            message: "Forbidden access (unauthenticated)",
           },
         ],
         post: null,
@@ -38,7 +38,7 @@ export const postResolvers = {
       return {
         userErrors: [
           {
-            message: "Title and content are required",
+            message: "You must provide title and content to create a post",
           },
         ],
         post: null,
@@ -57,7 +57,7 @@ export const postResolvers = {
     };
   },
   postUpdate: async (
-    parent: any,
+    _: any,
     { post, postId }: { postId: string; post: PostArgs["post"] },
     { prisma, userInfo }: Context
   ): Promise<PostPayloadType> => {
@@ -65,7 +65,7 @@ export const postResolvers = {
       return {
         userErrors: [
           {
-            message: "You must be logged in to update a post",
+            message: "Forbidden access (unauthenticated)",
           },
         ],
         post: null,
@@ -78,16 +78,15 @@ export const postResolvers = {
       prisma,
     });
 
-    if (error) {
-      return error;
-    }
+    if (error) return error;
 
     const { title, content } = post;
+
     if (!title && !content) {
       return {
         userErrors: [
           {
-            message: "Title or content are required",
+            message: "Need to have at least on e field to update",
           },
         ],
         post: null,
@@ -104,25 +103,35 @@ export const postResolvers = {
       return {
         userErrors: [
           {
-            message: "Post not found",
+            message: "Post does not exist",
           },
         ],
         post: null,
       };
     }
+
+    let payloadToUpdate = {
+      title,
+      content,
+    };
+
+    if (!title) delete payloadToUpdate.title;
+    if (!content) delete payloadToUpdate.content;
 
     return {
       userErrors: [],
       post: prisma.post.update({
+        data: {
+          ...payloadToUpdate,
+        },
         where: {
           id: Number(postId),
         },
-        data: post,
       }),
     };
   },
   postDelete: async (
-    parent: any,
+    _: any,
     { postId }: { postId: string },
     { prisma, userInfo }: Context
   ): Promise<PostPayloadType> => {
@@ -130,7 +139,7 @@ export const postResolvers = {
       return {
         userErrors: [
           {
-            message: "You must be logged in to update a post",
+            message: "Forbidden access (unauthenticated)",
           },
         ],
         post: null,
@@ -143,38 +152,38 @@ export const postResolvers = {
       prisma,
     });
 
-    if (error) {
-      return error;
-    }
+    if (error) return error;
 
-    const existingPost = await prisma.post.findUnique({
+    const post = await prisma.post.findUnique({
       where: {
         id: Number(postId),
       },
     });
 
-    if (!existingPost) {
+    if (!post) {
       return {
         userErrors: [
           {
-            message: "Post not found",
+            message: "Post does not exist",
           },
         ],
         post: null,
       };
     }
 
+    await prisma.post.delete({
+      where: {
+        id: Number(postId),
+      },
+    });
+
     return {
       userErrors: [],
-      post: prisma.post.delete({
-        where: {
-          id: Number(postId),
-        },
-      }),
+      post,
     };
   },
   postPublish: async (
-    parent: any,
+    _: any,
     { postId }: { postId: string },
     { prisma, userInfo }: Context
   ): Promise<PostPayloadType> => {
@@ -182,7 +191,7 @@ export const postResolvers = {
       return {
         userErrors: [
           {
-            message: "You must be logged in to update a post",
+            message: "Forbidden access (unauthenticated)",
           },
         ],
         post: null,
@@ -195,9 +204,7 @@ export const postResolvers = {
       prisma,
     });
 
-    if (error) {
-      return error;
-    }
+    if (error) return error;
 
     return {
       userErrors: [],
@@ -212,15 +219,16 @@ export const postResolvers = {
     };
   },
   postUnpublish: async (
-    parent: any,
+    _: any,
     { postId }: { postId: string },
     { prisma, userInfo }: Context
   ): Promise<PostPayloadType> => {
+    console.log(userInfo);
     if (!userInfo) {
       return {
         userErrors: [
           {
-            message: "You must be logged in to update a post",
+            message: "Forbidden access (unauthenticated)",
           },
         ],
         post: null,
@@ -233,9 +241,7 @@ export const postResolvers = {
       prisma,
     });
 
-    if (error) {
-      return error;
-    }
+    if (error) return error;
 
     return {
       userErrors: [],

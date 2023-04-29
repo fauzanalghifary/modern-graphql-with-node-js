@@ -34,11 +34,22 @@ export const canUserMutatePost = async ({
     },
   });
 
-  if (post?.authorId !== userId) {
+  if (!post) {
     return {
       userErrors: [
         {
-          message: "User not authorized",
+          message: "Post not found",
+        },
+      ],
+      post: null,
+    };
+  }
+
+  if (post.authorId !== userId) {
+    return {
+      userErrors: [
+        {
+          message: "You must be the author to update a post",
         },
       ],
       post: null,

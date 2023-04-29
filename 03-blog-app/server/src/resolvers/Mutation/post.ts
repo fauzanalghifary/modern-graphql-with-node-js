@@ -1,5 +1,6 @@
 import { Prisma, Post } from "@prisma/client";
 import { Context } from "../../index";
+import { canUserMutatePost } from "../../utils/canUserMutatePost";
 
 interface PostArgs {
   post: {
@@ -19,8 +20,19 @@ export const postResolvers = {
   postCreate: async (
     parent: any,
     { post }: PostArgs,
-    { prisma }: Context
+    { prisma, userInfo }: Context
   ): Promise<PostPayloadType> => {
+    if (!userInfo) {
+      return {
+        userErrors: [
+          {
+            message: "You must be logged in to create a post",
+          },
+        ],
+        post: null,
+      };
+    }
+
     const { title, content } = post;
     if (!title || !content) {
       return {
@@ -39,7 +51,7 @@ export const postResolvers = {
         data: {
           title,
           content,
-          authorId: 1,
+          authorId: userInfo.userId,
         },
       }),
     };
@@ -47,8 +59,29 @@ export const postResolvers = {
   postUpdate: async (
     parent: any,
     { post, postId }: { postId: string; post: PostArgs["post"] },
-    { prisma }: Context
+    { prisma, userInfo }: Context
   ): Promise<PostPayloadType> => {
+    if (!userInfo) {
+      return {
+        userErrors: [
+          {
+            message: "You must be logged in to update a post",
+          },
+        ],
+        post: null,
+      };
+    }
+
+    const error = await canUserMutatePost({
+      userId: userInfo.userId,
+      postId: Number(postId),
+      prisma,
+    });
+
+    if (error) {
+      return error;
+    }
+
     const { title, content } = post;
     if (!title && !content) {
       return {
@@ -91,8 +124,29 @@ export const postResolvers = {
   postDelete: async (
     parent: any,
     { postId }: { postId: string },
-    { prisma }: Context
+    { prisma, userInfo }: Context
   ): Promise<PostPayloadType> => {
+    if (!userInfo) {
+      return {
+        userErrors: [
+          {
+            message: "You must be logged in to update a post",
+          },
+        ],
+        post: null,
+      };
+    }
+
+    const error = await canUserMutatePost({
+      userId: userInfo.userId,
+      postId: Number(postId),
+      prisma,
+    });
+
+    if (error) {
+      return error;
+    }
+
     const existingPost = await prisma.post.findUnique({
       where: {
         id: Number(postId),
@@ -115,6 +169,82 @@ export const postResolvers = {
       post: prisma.post.delete({
         where: {
           id: Number(postId),
+        },
+      }),
+    };
+  },
+  postPublish: async (
+    parent: any,
+    { postId }: { postId: string },
+    { prisma, userInfo }: Context
+  ): Promise<PostPayloadType> => {
+    if (!userInfo) {
+      return {
+        userErrors: [
+          {
+            message: "You must be logged in to update a post",
+          },
+        ],
+        post: null,
+      };
+    }
+
+    const error = await canUserMutatePost({
+      userId: userInfo.userId,
+      postId: Number(postId),
+      prisma,
+    });
+
+    if (error) {
+      return error;
+    }
+
+    return {
+      userErrors: [],
+      post: prisma.post.update({
+        where: {
+          id: Number(postId),
+        },
+        data: {
+          published: true,
+        },
+      }),
+    };
+  },
+  postUnpublish: async (
+    parent: any,
+    { postId }: { postId: string },
+    { prisma, userInfo }: Context
+  ): Promise<PostPayloadType> => {
+    if (!userInfo) {
+      return {
+        userErrors: [
+          {
+            message: "You must be logged in to update a post",
+          },
+        ],
+        post: null,
+      };
+    }
+
+    const error = await canUserMutatePost({
+      userId: userInfo.userId,
+      postId: Number(postId),
+      prisma,
+    });
+
+    if (error) {
+      return error;
+    }
+
+    return {
+      userErrors: [],
+      post: prisma.post.update({
+        where: {
+          id: Number(postId),
+        },
+        data: {
+          published: false,
         },
       }),
     };
